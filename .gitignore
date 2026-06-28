@@ -1,0 +1,24 @@
+# Node
+frontend/node_modules/
+
+# Python
+backend/venv/
+backend/__pycache__/
+*.pyc
+
+# Environment
+backend/.env
+
+# Firebase Secret Key
+backend/firebase_key.json
+backend/*firebase*.json
+
+# VS Code
+.vscode/
+
+# Build
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
