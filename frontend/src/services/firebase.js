@@ -4,14 +4,15 @@ import { getAnalytics } from "firebase/analytics";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAhzdXAuhOrC4T7gyAt-rXKtJ2p4N_dGwc",
-  authDomain: "wasteguideai-b9617.firebaseapp.com",
-  projectId: "wasteguideai-b9617",
-  storageBucket: "wasteguideai-b9617.firebasestorage.app",
-  messagingSenderId: "12600767525",
-  appId: "1:12600767525:web:eb0f6140657389a86fbbcc",
-  measurementId: "G-QF9RD8DD87"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
+
 
 // Initialize Firebase
 export const app = initializeApp(firebaseConfig);

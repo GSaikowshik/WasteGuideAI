@@ -7,7 +7,15 @@ backend/__pycache__/
 *.pyc
 
 # Environment
+.env
+.env.local
+.env.*.local
+!*.env.example
+!*env.example
 backend/.env
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
 
 # Firebase Secret Key
 backend/firebase_key.json

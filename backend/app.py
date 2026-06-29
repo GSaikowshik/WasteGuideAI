@@ -1,3 +1,9 @@
+import os
+from dotenv import load_dotenv, find_dotenv
+
+# Load environment variables from the root or local .env file
+load_dotenv(find_dotenv())
+
 from flask import Flask
 from flask_cors import CORS
 from routes.waste_routes import waste_bp
