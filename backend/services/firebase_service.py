@@ -1,4 +1,5 @@
 import os
+import json
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
@@ -7,21 +8,42 @@ from datetime import datetime
 FIREBASE_MOCK_MODE = True
 db = None
 
-# Check environment variables
+# Check environment variables (either full JSON string or individual components)
+firebase_credentials_json = os.getenv("FIREBASE_CREDENTIALS")
 project_id = os.getenv("FIREBASE_PROJECT_ID")
 client_email = os.getenv("FIREBASE_CLIENT_EMAIL")
 private_key = os.getenv("FIREBASE_PRIVATE_KEY")
 
-if project_id and client_email and private_key:
+firebase_dict = None
+
+if firebase_credentials_json:
     try:
-        formatted_private_key = private_key.replace("\\n", "\n")
-        cred = credentials.Certificate({
-            "type": "service_account",
-            "project_id": project_id,
-            "private_key": formatted_private_key,
-            "client_email": client_email,
-            "token_uri": "https://oauth2.googleapis.com/token",
-        })
+        firebase_dict = json.loads(firebase_credentials_json)
+        print("Firebase config loaded from FIREBASE_CREDENTIALS JSON string.")
+    except Exception as e:
+        print(f"Failed to parse FIREBASE_CREDENTIALS JSON: {e}")
+
+if not firebase_dict and project_id and client_email and private_key:
+    firebase_dict = {
+        "type": "service_account",
+        "project_id": project_id,
+        "private_key": private_key,
+        "client_email": client_email,
+        "token_uri": "https://oauth2.googleapis.com/token",
+    }
+    print("Firebase config loaded from individual environment variables.")
+
+if firebase_dict:
+    try:
+        # Force replace literal slash-n with actual newlines in private key
+        if "private_key" in firebase_dict and firebase_dict["private_key"]:
+            pk = firebase_dict["private_key"]
+            pk = pk.replace("\\n", "\n")
+            # If wrapped in literal quotes from environment variable parsing, clean them up
+            pk = pk.strip('"').strip("'")
+            firebase_dict["private_key"] = pk
+            
+        cred = credentials.Certificate(firebase_dict)
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
         db = firestore.client()
