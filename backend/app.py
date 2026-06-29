@@ -9,8 +9,8 @@ from flask_cors import CORS
 from routes.waste_routes import waste_bp
 
 app = Flask(__name__)
-# Enable CORS for all routes under /api, specifically from Vite local server
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
+# Enable CORS for all routes under /api, supporting all origins in production
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # Register blueprint with prefix
 app.register_blueprint(waste_bp, url_prefix="/api")
