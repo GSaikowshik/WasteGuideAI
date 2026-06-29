@@ -23,14 +23,9 @@ if firebase_credentials_json:
 if not firebase_dict:
     project_id = os.getenv("FIREBASE_PROJECT_ID")
     client_email = os.getenv("FIREBASE_CLIENT_EMAIL")
-    private_key = os.getenv("FIREBASE_PRIVATE_KEY", "")
+    private_key = os.getenv("FIREBASE_PRIVATE_KEY")
     
     if project_id and client_email and private_key:
-        # Fix Render's environment variable string escaping
-        private_key = private_key.replace("\\n", "\n")
-        # Strip any surrounding quotes that may be present
-        private_key = private_key.strip('"').strip("'")
-        
         firebase_dict = {
             "type": os.getenv("FIREBASE_TYPE", "service_account"),
             "project_id": project_id,
@@ -42,12 +37,12 @@ if not firebase_dict:
 
 if firebase_dict:
     try:
-        # Force replace literal slash-n with actual newlines in private key
         if "private_key" in firebase_dict and firebase_dict["private_key"]:
             pk = firebase_dict["private_key"]
-            pk = pk.replace("\\n", "\n")
-            # If wrapped in literal quotes from environment variable parsing, clean them up
+            # 1. Strip literal quotes that Render might inject from the .env file
             pk = pk.strip('"').strip("'")
+            # 2. Replace escaped literal \n with actual newlines
+            pk = pk.replace("\\n", "\n")
             firebase_dict["private_key"] = pk
             
         cred = credentials.Certificate(firebase_dict)
