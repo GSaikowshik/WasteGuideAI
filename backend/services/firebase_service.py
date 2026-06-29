@@ -10,9 +10,6 @@ db = None
 
 # Check environment variables (either full JSON string or individual components)
 firebase_credentials_json = os.getenv("FIREBASE_CREDENTIALS")
-project_id = os.getenv("FIREBASE_PROJECT_ID")
-client_email = os.getenv("FIREBASE_CLIENT_EMAIL")
-private_key = os.getenv("FIREBASE_PRIVATE_KEY")
 
 firebase_dict = None
 
@@ -23,15 +20,25 @@ if firebase_credentials_json:
     except Exception as e:
         print(f"Failed to parse FIREBASE_CREDENTIALS JSON: {e}")
 
-if not firebase_dict and project_id and client_email and private_key:
-    firebase_dict = {
-        "type": "service_account",
-        "project_id": project_id,
-        "private_key": private_key,
-        "client_email": client_email,
-        "token_uri": "https://oauth2.googleapis.com/token",
-    }
-    print("Firebase config loaded from individual environment variables.")
+if not firebase_dict:
+    project_id = os.getenv("FIREBASE_PROJECT_ID")
+    client_email = os.getenv("FIREBASE_CLIENT_EMAIL")
+    private_key = os.getenv("FIREBASE_PRIVATE_KEY", "")
+    
+    if project_id and client_email and private_key:
+        # Fix Render's environment variable string escaping
+        private_key = private_key.replace("\\n", "\n")
+        # Strip any surrounding quotes that may be present
+        private_key = private_key.strip('"').strip("'")
+        
+        firebase_dict = {
+            "type": os.getenv("FIREBASE_TYPE", "service_account"),
+            "project_id": project_id,
+            "private_key": private_key,
+            "client_email": client_email,
+            "token_uri": "https://oauth2.googleapis.com/token",
+        }
+        print("Firebase config loaded from individual environment variables.")
 
 if firebase_dict:
     try:
