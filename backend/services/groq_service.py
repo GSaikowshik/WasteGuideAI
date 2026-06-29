@@ -1,62 +1,112 @@
+import os
 import json
 import re
-
 from groq import Groq
-from config import GROQ_API_KEY
 
 # Fallback mode flag
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MOCK_MODE = not GROQ_API_KEY
 
+client = None
 if not MOCK_MODE:
     try:
         client = Groq(api_key=GROQ_API_KEY)
+        print("Groq Client initialized successfully.")
     except Exception as e:
         print(f"Failed to initialize Groq client: {e}. Switching to Mock Mode.")
         MOCK_MODE = True
-        client = None
 else:
-    client = None
-
+    print("GROQ_API_KEY not found. Groq service running in Mock Mode.")
 
 
 def analyze_waste(item):
+    global MOCK_MODE
     if MOCK_MODE:
         item_lower = item.lower()
-        if any(w in item_lower for w in ["plastic", "bottle", "cup", "container"]):
+        if any(w in item_lower for w in ["plastic", "bottle", "cup", "container", "jug"]):
             category = "Plastic"
             recyclable = True
             hazard = "None"
-            disposalSteps = ["Rinse out any liquid or food residue", "Crush the bottle to save space", "Place in the recycling bin"]
-            recyclingInstructions = ["Ensure it has the recycling symbol (usually #1 or #2)", "Keep caps on or off depending on local guidelines"]
-            ecoSuggestion = "Switch to a reusable flask to avoid single-use plastics."
-        elif any(w in item_lower for w in ["paper", "cardboard", "box", "book"]):
+            disposalSteps = [
+                "Rinse out any liquid or food residue to avoid contamination",
+                "Crush the bottle or container to save space in the bin",
+                "Place in the designated plastic recycling bin"
+            ]
+            recyclingInstructions = [
+                "Verify the resin identification code (usually #1 or #2 is widely accepted)",
+                "Keep plastic caps screwed on or discard according to municipal guidelines"
+            ]
+            ecoSuggestion = "Switch to a reusable glass, stainless steel flask, or container to reduce single-use plastic waste."
+        elif any(w in item_lower for w in ["paper", "cardboard", "box", "book", "newspaper"]):
             category = "Paper / Cardboard"
             recyclable = True
             hazard = "None"
-            disposalSteps = ["Flatten cardboard boxes", "Keep dry and free of grease", "Place in the paper recycling bin"]
-            recyclingInstructions = ["Do not recycle paper contaminated with grease or food", "Remove any plastic wrap or packing tape"]
-            ecoSuggestion = "Opt for digital receipts and reusable bags to reduce paper usage."
-        elif any(w in item_lower for w in ["apple", "banana", "food", "organic", "vegetable", "fruit", "bread", "compost"]):
+            disposalSteps = [
+                "Flatten any boxes to optimize bin capacity",
+                "Ensure the paper is dry and free of greasy residues",
+                "Place in the paper recycling container"
+            ]
+            recyclingInstructions = [
+                "Do not recycle greasy paper (e.g., pizza boxes) as it spoils the pulp batch",
+                "Remove plastic liners, packing tape, or staples if possible"
+            ]
+            ecoSuggestion = "Choose digital alternatives where possible and opt for recycled paper products."
+        elif any(w in item_lower for w in ["apple", "banana", "food", "organic", "vegetable", "fruit", "bread", "peel", "compost"]):
             category = "Organic / Food Waste"
             recyclable = False
             hazard = "None"
-            disposalSteps = ["Collect in a compost kitchen bin", "Transfer to an outdoor compost pile or green bin", "Avoid putting meat or dairy in home compost to prevent pests"]
-            recyclingInstructions = ["Composting is the organic equivalent of recycling", "Do not mix with plastics or metals"]
-            ecoSuggestion = "Start home composting to turn kitchen scraps into nutrient-rich soil."
-        elif any(w in item_lower for w in ["battery", "phone", "electronics", "bulb", "chemical"]):
+            disposalSteps = [
+                "Collect waste in a separate kitchen compost caddy",
+                "Transfer to an outdoor compost pile or local organic green bin",
+                "Avoid putting meat, bones, or dairy products in home compost piles to deter pests"
+            ]
+            recyclingInstructions = [
+                "Not suitable for standard recycling",
+                "Composting converts organic matter into nutrient-rich soil helper"
+            ]
+            ecoSuggestion = "Plan meals ahead to reduce food waste, and use leftovers creatively."
+        elif any(w in item_lower for w in ["battery", "phone", "electronics", "bulb", "charger", "e-waste"]):
             category = "Hazardous / E-Waste"
             recyclable = True
-            hazard = "High (Heavy metals, toxic chemicals)"
-            disposalSteps = ["Do not throw in regular trash bin", "Cover terminals of batteries with tape to prevent short circuit", "Drop off at a designated e-waste collection center"]
-            recyclingInstructions = ["Must be processed at specialized facilities", "Do not attempt to puncture or open batteries"]
-            ecoSuggestion = "Use rechargeable batteries or look for brands offering recycling take-back programs."
+            hazard = "High (Contains heavy metals like Lead, Cadmium, and Mercury which pollute ground soil)"
+            disposalSteps = [
+                "Never throw electronics or batteries in the regular trash bin",
+                "Apply electrical tape over battery terminals to prevent short-circuiting during transit",
+                "Drop off at a certified local e-waste recycler or retail collection bin"
+            ]
+            recyclingInstructions = [
+                "Must be processed at specialized pyrometallurgical facilities",
+                "Do not attempt to open or dismantle electronics or batteries manually"
+            ]
+            ecoSuggestion = "Invest in rechargeable batteries and repair electronics before replacing them."
+        elif any(w in item_lower for w in ["glass", "jar", "tumbler"]):
+            category = "Glass"
+            recyclable = True
+            hazard = "Medium (Physical hazard if broken)"
+            disposalSteps = [
+                "Rinse thoroughly to remove food debris",
+                "Keep metal lids separate as they can be recycled with metals",
+                "Place in the glass container recycling bin"
+            ]
+            recyclingInstructions = [
+                "Only recycle container glass; window panes, ceramics, and drinking glasses melt at different temperatures",
+                "Clear, brown, and green glass should be sorted if requested locally"
+            ]
+            ecoSuggestion = "Wash and reuse glass jars for kitchen storage or dry goods."
         else:
             category = "General Waste"
             recyclable = False
             hazard = "Low"
-            disposalSteps = ["Place in general trash bin", "Ensure it is bagged securely", "Dispose of according to local landfill guidelines"]
-            recyclingInstructions = ["Check if local specialized recycling exists", "Usually landfilled or incinerated"]
-            ecoSuggestion = "Try to avoid products that cannot be recycled or composted."
+            disposalSteps = [
+                "Bag the waste securely to prevent littering",
+                "Place in the general landfill trash container",
+                "Dispose of according to local municipal garbage collection rules"
+            ]
+            recyclingInstructions = [
+                "Not recyclable in regular household streams",
+                "Destined for landfill or incineration"
+            ]
+            ecoSuggestion = "Try to avoid products packaged in non-recyclable multi-layered materials."
 
         return {
             "item": item,
@@ -68,70 +118,65 @@ def analyze_waste(item):
             "ecoSuggestion": ecoSuggestion
         }
 
+    # Live Groq API
     prompt = f"""
-You are an expert waste management assistant.
-
+You are a waste management and recycling expert.
 Analyze the waste item: "{item}"
 
 Return ONLY a valid JSON object.
-
-The JSON must exactly follow this schema:
-
+The JSON must follow this schema exactly:
 {{
-    "item": "",
-    "category": "",
-    "recyclable": true,
-    "hazard": "",
+    "item": "{item}",
+    "category": "Waste Category (e.g., Plastic, Paper / Cardboard, Glass, Metal, Organic, Hazardous / E-Waste, General)",
+    "recyclable": true/false,
+    "hazard": "Details of any hazard warnings or 'None' if safe",
     "disposalSteps": [
-        "",
-        "",
-        ""
+        "Step 1",
+        "Step 2",
+        "Step 3"
     ],
     "recyclingInstructions": [
-        "",
-        ""
+        "Instruction 1",
+        "Instruction 2"
     ],
-    "ecoSuggestion": ""
+    "ecoSuggestion": "Eco-friendly alternative or reduction advice"
 }}
 
-Do not include markdown.
-Do not include explanations.
-Return only JSON.
+Do not write markdown block symbols or any text other than the JSON object.
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a waste management expert. Always respond with valid JSON only."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0
-    )
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a waste management expert. Always respond with raw JSON matching the requested schema. Do not enclose in markdown."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.1
+        )
 
-    content = response.choices[0].message.content.strip()
-
-    print("\n========== RAW GROQ RESPONSE ==========")
-    print(content)
-    print("=======================================\n")
-
-    # Remove markdown fences if present
-    content = re.sub(r"^```json\s*", "", content)
-    content = re.sub(r"^```\s*", "", content)
-    content = re.sub(r"\s*```$", "", content)
-
-    # Extract JSON object
-    start = content.find("{")
-    end = content.rfind("}")
-
-    if start == -1 or end == -1:
-        raise Exception(f"Groq did not return JSON:\n\n{content}")
-
-    json_text = content[start:end + 1]
-
-    return json.loads(json_text)
+        content = response.choices[0].message.content.strip()
+        
+        # Clean markdown wrappers if any
+        content = re.sub(r"^```json\s*", "", content)
+        content = re.sub(r"^```\s*", "", content)
+        content = re.sub(r"\s*```$", "", content)
+        
+        start = content.find("{")
+        end = content.rfind("}")
+        if start != -1 and end != -1:
+            content = content[start:end + 1]
+            
+        return json.loads(content)
+        
+    except Exception as e:
+        print(f"Error calling Groq API: {e}. Falling back to rule-based mock analysis.")
+        # Fallback to local analysis on error
+        MOCK_MODE = True
+        return analyze_waste(item)

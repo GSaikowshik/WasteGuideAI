@@ -1,16 +1,25 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "http://127.0.0.1:5000",
+  baseURL: "http://localhost:5000/api",
 });
 
-export const analyzeWaste = (item) =>
-    api.post("/analyze", { item });
+// Scan waste item using the AI model
+export const scanWaste = async (item) => {
+  const response = await api.post("/scan", { item });
+  return response.data;
+};
 
-export const getHistory = () =>
-    api.get("/history");
+// Fetch all scan history for list and analytics dashboard
+export const getHistory = async () => {
+  const response = await api.get("/history");
+  return response.data;
+};
 
-export const getDashboard = () =>
-    api.get("/dashboard");
+// Fetch collection centers for the interactive map
+export const getCenters = async () => {
+  const response = await api.get("/centers");
+  return response.data;
+};
 
 export default api;

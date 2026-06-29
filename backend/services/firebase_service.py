@@ -3,26 +3,94 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
 
-# Check if firebase_key.json exists, otherwise use in-memory mockup
-FIREBASE_MOCK_MODE = not os.path.exists("firebase_key.json")
+# Try to initialize Firebase
+FIREBASE_MOCK_MODE = True
+db = None
 
-if not FIREBASE_MOCK_MODE:
+# Check environment variables
+project_id = os.getenv("FIREBASE_PROJECT_ID")
+client_email = os.getenv("FIREBASE_CLIENT_EMAIL")
+private_key = os.getenv("FIREBASE_PRIVATE_KEY")
+
+if project_id and client_email and private_key:
     try:
-        # Initialize Firebase only once
+        formatted_private_key = private_key.replace("\\n", "\n")
+        cred = credentials.Certificate({
+            "type": "service_account",
+            "project_id": project_id,
+            "private_key": formatted_private_key,
+            "client_email": client_email,
+            "token_uri": "https://oauth2.googleapis.com/token",
+        })
         if not firebase_admin._apps:
-            cred = credentials.Certificate("firebase_key.json")
             firebase_admin.initialize_app(cred)
         db = firestore.client()
+        FIREBASE_MOCK_MODE = False
+        print("Firebase Admin SDK initialized successfully via environment variables.")
     except Exception as e:
-        print(f"Firebase initialization failed: {e}. Switching to in-memory Mock Mode.")
-        FIREBASE_MOCK_MODE = True
-        db = None
-else:
-    print("firebase_key.json not found. Backend running with in-memory Mock database.")
-    db = None
+        print(f"Failed to initialize Firebase via env variables: {e}")
+
+# Fallback to local JSON file
+if FIREBASE_MOCK_MODE:
+    key_path = "firebase_key.json"
+    # Try looking in backend directory or parent if needed
+    if not os.path.exists(key_path) and os.path.exists("backend/firebase_key.json"):
+        key_path = "backend/firebase_key.json"
+        
+    if os.path.exists(key_path):
+        try:
+            if not firebase_admin._apps:
+                cred = credentials.Certificate(key_path)
+                firebase_admin.initialize_app(cred)
+            db = firestore.client()
+            FIREBASE_MOCK_MODE = False
+            print("Firebase Admin SDK initialized successfully via JSON file.")
+        except Exception as e:
+            print(f"Failed to initialize Firebase via JSON file: {e}")
+
+if FIREBASE_MOCK_MODE:
+    print("WARNING: Running Firebase service in Mock Mode with in-memory database.")
 
 # In-memory storage for mock database
 _in_memory_scans = []
+
+# Seed with some initial mock scans so the dashboard is not empty on first visit
+_in_memory_scans.extend([
+    {
+        "id": "mock_scan_seed_1",
+        "item": "plastic milk jug",
+        "category": "Plastic",
+        "recyclable": True,
+        "hazard": "None",
+        "ecoSuggestion": "Choose local dairy products in returnable glass bottles.",
+        "disposalSteps": ["Rinse item thoroughly", "Crush to reduce volume", "Place in the recycling bin"],
+        "recyclingInstructions": ["Check for PET 1 or HDPE 2 symbols", "Re-attach the cap after rinsing"],
+        "timestamp": datetime.utcnow()
+    },
+    {
+        "id": "mock_scan_seed_2",
+        "item": "banana peel",
+        "category": "Organic / Food Waste",
+        "recyclable": False,
+        "hazard": "None",
+        "ecoSuggestion": "Compost kitchen scraps to create rich soil for house plants.",
+        "disposalSteps": ["Place in compost bin", "Do not mix with plastics or metals"],
+        "recyclingInstructions": ["Organic composting only"],
+        "timestamp": datetime.utcnow()
+    },
+    {
+        "id": "mock_scan_seed_3",
+        "item": "aa battery",
+        "category": "Hazardous / E-Waste",
+        "recyclable": True,
+        "hazard": "High (Contains heavy metals)",
+        "ecoSuggestion": "Consider purchasing rechargeable NiMH batteries to reduce heavy metal waste.",
+        "disposalSteps": ["Store in a dry cool place", "Take to local electronics drop-off"],
+        "recyclingInstructions": ["Specialist processing required", "Do not throw in general rubbish"],
+        "timestamp": datetime.utcnow()
+    }
+])
+
 
 def save_scan(data):
     if FIREBASE_MOCK_MODE:
@@ -54,11 +122,11 @@ def save_scan(data):
 
 def get_history():
     if FIREBASE_MOCK_MODE:
-        # Return history sorted by timestamp descending
         history = []
         for scan in sorted(_in_memory_scans, key=lambda x: x["timestamp"], reverse=True):
             entry = scan.copy()
-            entry["timestamp"] = entry["timestamp"].isoformat()
+            if isinstance(entry["timestamp"], datetime):
+                entry["timestamp"] = entry["timestamp"].isoformat()
             history.append(entry)
         return history
     else:
@@ -67,16 +135,14 @@ def get_history():
             .stream()
 
         history = []
-
         for doc in docs:
-
             data = doc.to_dict()
             data["id"] = doc.id
-
-            # Convert datetime to ISO string
             if "timestamp" in data and data["timestamp"]:
-                data["timestamp"] = data["timestamp"].isoformat()
-
+                # If Firestore returns a datetime object, convert it to isoformat
+                if hasattr(data["timestamp"], "isoformat"):
+                    data["timestamp"] = data["timestamp"].isoformat()
+                else:
+                    data["timestamp"] = str(data["timestamp"])
             history.append(data)
-
         return history

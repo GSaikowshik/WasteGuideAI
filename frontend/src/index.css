@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
-body{
-    margin:0;
-    padding:0;
-    font-family: Inter, Arial, sans-serif;
-    background:#f8fafc;
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Inter, Arial, sans-serif;
+  background: #09090b; /* zinc-950 dark theme */
+  color: #f4f4f5;      /* zinc-100 */
 }
+
+/* Dark mode filter for Leaflet OpenStreetMap tiles */
+.map-tiles-dark {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
