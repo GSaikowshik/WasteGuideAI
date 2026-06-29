@@ -1,12 +1,13 @@
 from collections import Counter
-from services.firebase_service import db
+from services.firebase_service import db, FIREBASE_MOCK_MODE, _in_memory_scans
 
 
 def get_dashboard_data():
-
-    docs = db.collection("history").stream()
-
-    history = [doc.to_dict() for doc in docs]
+    if FIREBASE_MOCK_MODE:
+        history = _in_memory_scans
+    else:
+        docs = db.collection("history").stream()
+        history = [doc.to_dict() for doc in docs]
 
     total_scans = len(history)
 
