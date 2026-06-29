@@ -7,6 +7,30 @@ const api = axios.create({
   baseURL: baseURL,
 });
 
+// Generate or fetch a persistent unique user ID for this browser session to isolate data
+const getUserId = () => {
+  let userId = localStorage.getItem("waste_guide_user_id");
+  if (!userId) {
+    userId = "user_" + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem("waste_guide_user_id", userId);
+  }
+  return userId;
+};
+
+// Intercept all outgoing requests to inject the unique user ID in the headers
+api.interceptors.request.use(
+  (config) => {
+    const userId = getUserId();
+    if (userId) {
+      config.headers["x-user-id"] = userId;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Scan waste item using the AI model
 export const scanWaste = async (item) => {
   const response = await api.post("/scan", { item });

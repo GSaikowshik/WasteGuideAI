@@ -82,6 +82,7 @@ _in_memory_scans = []
 _in_memory_scans.extend([
     {
         "id": "mock_scan_seed_1",
+        "user_id": "seed_user",
         "item": "plastic milk jug",
         "category": "Plastic",
         "recyclable": True,
@@ -93,6 +94,7 @@ _in_memory_scans.extend([
     },
     {
         "id": "mock_scan_seed_2",
+        "user_id": "seed_user",
         "item": "banana peel",
         "category": "Organic / Food Waste",
         "recyclable": False,
@@ -104,6 +106,7 @@ _in_memory_scans.extend([
     },
     {
         "id": "mock_scan_seed_3",
+        "user_id": "seed_user",
         "item": "aa battery",
         "category": "Hazardous / E-Waste",
         "recyclable": True,
@@ -116,10 +119,11 @@ _in_memory_scans.extend([
 ])
 
 
-def save_scan(data):
+def save_scan(data, user_id):
     if FIREBASE_MOCK_MODE:
         scan_entry = {
             "id": f"mock_scan_{len(_in_memory_scans) + 1}",
+            "user_id": user_id,
             "item": data.get("item"),
             "category": data.get("category"),
             "recyclable": data.get("recyclable"),
@@ -130,9 +134,10 @@ def save_scan(data):
             "timestamp": datetime.utcnow()
         }
         _in_memory_scans.append(scan_entry)
-        print(f"[Mock DB] Saved scan: {data.get('item')}")
+        print(f"[Mock DB] Saved scan for user {user_id}: {data.get('item')}")
     else:
         db.collection("history").add({
+            "user_id": user_id,
             "item": data.get("item"),
             "category": data.get("category"),
             "recyclable": data.get("recyclable"),
@@ -144,18 +149,31 @@ def save_scan(data):
         })
 
 
-def get_history():
+def get_history(user_id):
     if FIREBASE_MOCK_MODE:
         history = []
-        for scan in sorted(_in_memory_scans, key=lambda x: x["timestamp"], reverse=True):
+        user_scans = [s for s in _in_memory_scans if s.get("user_id") == user_id]
+        
+        # If user is new and has no scans, copy seed scans under their ID so the dashboard isn't blank
+        if not user_scans:
+            for s in _in_memory_scans:
+                if s.get("user_id") == "seed_user":
+                    new_s = s.copy()
+                    new_s["user_id"] = user_id
+                    new_s["id"] = f"{s['id']}_{user_id}"
+                    _in_memory_scans.append(new_s)
+            user_scans = [s for s in _in_memory_scans if s.get("user_id") == user_id]
+
+        for scan in sorted(user_scans, key=lambda x: x["timestamp"], reverse=True):
             entry = scan.copy()
             if isinstance(entry["timestamp"], datetime):
                 entry["timestamp"] = entry["timestamp"].isoformat()
             history.append(entry)
         return history
     else:
+        # Filter by user_id. Fetch all and sort in Python to avoid composite index errors
         docs = db.collection("history") \
-            .order_by("timestamp", direction=firestore.Query.DESCENDING) \
+            .where("user_id", "==", user_id) \
             .stream()
 
         history = []
@@ -163,10 +181,12 @@ def get_history():
             data = doc.to_dict()
             data["id"] = doc.id
             if "timestamp" in data and data["timestamp"]:
-                # If Firestore returns a datetime object, convert it to isoformat
                 if hasattr(data["timestamp"], "isoformat"):
                     data["timestamp"] = data["timestamp"].isoformat()
                 else:
                     data["timestamp"] = str(data["timestamp"])
             history.append(data)
+            
+        # Sort by timestamp descending
+        history.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
         return history

@@ -6,9 +6,26 @@ from services.centers_service import get_collection_centers
 waste_bp = Blueprint("waste", __name__)
 
 
+def get_current_user():
+    # Retrieve user ID from headers (supporting x-user-id or Authorization bearer token)
+    user_id = request.headers.get("x-user-id")
+    if not user_id:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            user_id = auth_header[7:].strip()
+    return user_id
+
+
 @waste_bp.route("/scan", methods=["POST"])
 def scan_waste():
     try:
+        user_id = get_current_user()
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "message": "Unauthorized. Missing user authentication token or ID."
+            }), 401
+
         data = request.get_json()
         if not data or "item" not in data or not data["item"].strip():
             return jsonify({
@@ -21,8 +38,8 @@ def scan_waste():
         # 1. Call AI Waste Scanner
         result = analyze_waste(item)
         
-        # 2. Save scanned item details to Firebase
-        save_scan(result)
+        # 2. Save scanned item details to Firebase under user_id
+        save_scan(result, user_id)
         
         return jsonify({
             "success": True,
@@ -38,7 +55,14 @@ def scan_waste():
 @waste_bp.route("/history", methods=["GET"])
 def history():
     try:
-        scan_history = get_history()
+        user_id = get_current_user()
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "message": "Unauthorized. Missing user authentication token or ID."
+            }), 401
+
+        scan_history = get_history(user_id)
         return jsonify({
             "success": True,
             "data": scan_history
@@ -53,6 +77,7 @@ def history():
 @waste_bp.route("/centers", methods=["GET"])
 def centers():
     try:
+        # Map centers are public, no user scoping required
         centers_data = get_collection_centers()
         return jsonify({
             "success": True,
