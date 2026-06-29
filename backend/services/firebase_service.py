@@ -190,3 +190,32 @@ def get_history(user_id):
         # Sort by timestamp descending
         history.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
         return history
+
+
+def delete_scan(scan_id, user_id):
+    if FIREBASE_MOCK_MODE:
+        for scan in _in_memory_scans:
+            if scan.get("id") == scan_id:
+                if scan.get("user_id") == user_id:
+                    _in_memory_scans.remove(scan)
+                    print(f"[Mock DB] Deleted scan {scan_id} for user {user_id}")
+                    return True
+                else:
+                    return False  # Unauthorized
+        return None  # Not Found
+    else:
+        try:
+            doc_ref = db.collection("history").document(scan_id)
+            doc = doc_ref.get()
+            if doc.exists:
+                doc_data = doc.to_dict()
+                if doc_data.get("user_id") == user_id:
+                    doc_ref.delete()
+                    print(f"[Firestore] Deleted document {scan_id} for user {user_id}")
+                    return True
+                else:
+                    return False  # Unauthorized
+            return None  # Not Found
+        except Exception as e:
+            print(f"Error deleting Firestore doc: {e}")
+            raise e

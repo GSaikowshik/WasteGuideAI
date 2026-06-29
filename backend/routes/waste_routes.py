@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from services.groq_service import analyze_waste
-from services.firebase_service import save_scan, get_history
+from services.firebase_service import save_scan, get_history, delete_scan
 from services.centers_service import get_collection_centers
 
 waste_bp = Blueprint("waste", __name__)
@@ -83,6 +83,39 @@ def centers():
             "success": True,
             "data": centers_data
         })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Server error: {str(e)}"
+        }), 500
+
+
+@waste_bp.route("/history/<string:scan_id>", methods=["DELETE"])
+def delete_history_item(scan_id):
+    try:
+        user_id = get_current_user()
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "message": "Unauthorized. Missing user authentication token or ID."
+            }), 401
+
+        status = delete_scan(scan_id, user_id)
+        if status is True:
+            return jsonify({
+                "success": True,
+                "message": "Scan history item deleted successfully."
+            }), 200
+        elif status is False:
+            return jsonify({
+                "success": False,
+                "message": "Unauthorized. You cannot delete this item."
+            }), 403
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Scan history item not found."
+            }), 404
     except Exception as e:
         return jsonify({
             "success": False,

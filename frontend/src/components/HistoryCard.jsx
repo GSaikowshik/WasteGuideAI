@@ -1,8 +1,20 @@
-function HistoryCard({ data }) {
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-6 mb-6 hover:shadow-xl transition">
+import { FaTrashAlt } from "react-icons/fa";
 
-      <div className="flex justify-between">
+function HistoryCard({ data, onDelete }) {
+  return (
+    <div className="bg-white rounded-xl shadow-lg p-6 mb-6 hover:shadow-xl transition relative group">
+      
+      {onDelete && (
+        <button
+          onClick={() => onDelete(data.id)}
+          className="absolute top-6 right-6 text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-gray-50 transition cursor-pointer"
+          title="Delete scan"
+        >
+          <FaTrashAlt className="text-lg" />
+        </button>
+      )}
+
+      <div className="flex justify-between pr-8">
 
         <h2 className="text-2xl font-bold capitalize text-green-700">
           {data.item}

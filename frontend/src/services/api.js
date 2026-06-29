@@ -49,4 +49,10 @@ export const getCenters = async () => {
   return response.data;
 };
 
+// Delete a scan history item securely
+export const deleteScan = async (scanId) => {
+  const response = await api.delete(`/history/${scanId}`);
+  return response.data;
+};
+
 export default api;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getHistory } from "../services/api";
+import { getHistory, deleteScan } from "../services/api";
 import HistoryCard from "../components/HistoryCard";
 
 function History() {
@@ -18,6 +18,21 @@ function History() {
     }
   }
 
+  const handleDeleteScan = async (scanId) => {
+    if (!window.confirm("Are you sure you want to delete this scan from your history?")) return;
+    try {
+      const res = await deleteScan(scanId);
+      if (res.success) {
+        setHistory((prev) => prev.filter((item) => item.id !== scanId));
+      } else {
+        alert(res.message || "Failed to delete the scan.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto py-10">
 
@@ -34,6 +49,7 @@ function History() {
           <HistoryCard
             key={item.id}
             data={item}
+            onDelete={handleDeleteScan}
           />
         ))
       )}

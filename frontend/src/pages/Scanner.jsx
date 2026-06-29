@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { scanWaste, getHistory } from "../services/api";
+import { scanWaste, getHistory, deleteScan } from "../services/api";
 import { 
   FaSearch, FaSpinner, FaHistory, FaCheckCircle, 
   FaTimesCircle, FaExclamationTriangle, FaLeaf, 
@@ -28,6 +28,25 @@ export default function Scanner() {
   useEffect(() => {
     fetchHistory();
   }, []);
+
+  const handleDeleteScan = async (e, scanId) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this scan from your history?")) return;
+    try {
+      const res = await deleteScan(scanId);
+      if (res.success) {
+        setHistory((prev) => prev.filter((item) => item.id !== scanId));
+        if (result && result.id === scanId) {
+          setResult(null);
+        }
+      } else {
+        alert(res.message || "Failed to delete the scan.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error connecting to server.");
+    }
+  };
 
   const handleScan = async (e) => {
     e.preventDefault();
@@ -254,13 +273,22 @@ export default function Scanner() {
                   className="bg-zinc-900/30 border border-zinc-900 hover:border-zinc-800 rounded-2xl p-5 flex flex-col justify-between gap-4 transition-all duration-300 group hover:bg-zinc-900/50 cursor-pointer"
                   onClick={() => setResult(scan)}
                 >
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block">
-                      {scan.category}
-                    </span>
-                    <h4 className="font-bold text-zinc-200 capitalize group-hover:text-white transition-colors">
-                      {scan.item}
-                    </h4>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block">
+                        {scan.category}
+                      </span>
+                      <h4 className="font-bold text-zinc-200 capitalize group-hover:text-white transition-colors">
+                        {scan.item}
+                      </h4>
+                    </div>
+                    <button
+                      onClick={(e) => handleDeleteScan(e, scan.id)}
+                      className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-800/80 transition-all cursor-pointer shrink-0"
+                      title="Delete scan"
+                    >
+                      <FaTrashAlt className="text-xs" />
+                    </button>
                   </div>
                   <div className="flex items-center justify-between text-xs mt-2 border-t border-zinc-900/80 pt-3">
                     <span className="text-zinc-600">
