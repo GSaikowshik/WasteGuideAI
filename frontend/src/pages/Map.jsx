@@ -8,10 +8,9 @@ import { FaMapMarkerAlt, FaClock, FaPhoneAlt, FaTrash, FaRecycle } from "react-i
 export default function Map() {
   const [centers, setCenters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [locating, setLocating] = useState(true);
+  const [mapCenter, setMapCenter] = useState(null);
   const [selectedCenter, setSelectedCenter] = useState(null);
-
-  // New York City default center coordinates
-  const defaultPosition = [40.730610, -73.935242];
 
   useEffect(() => {
     const fetchCenters = async () => {
@@ -27,6 +26,26 @@ export default function Map() {
       }
     };
     fetchCenters();
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setMapCenter([position.coords.latitude, position.coords.longitude]);
+          setLocating(false);
+        },
+        (error) => {
+          console.error("Geolocation failed or denied:", error);
+          // Fallback to Bhimavaram region: [16.5449, 81.5212]
+          setMapCenter([16.5449, 81.5212]);
+          setLocating(false);
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    } else {
+      console.warn("Geolocation not supported by browser.");
+      setMapCenter([16.5449, 81.5212]);
+      setLocating(false);
+    }
   }, []);
 
   // Mapping category colors to hex values
@@ -77,11 +96,13 @@ export default function Map() {
     });
   };
 
-  if (loading) {
+  if (loading || locating) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <FaRecycle className="animate-spin text-5xl text-emerald-400" />
-        <p className="text-zinc-500 font-semibold animate-pulse">Mapping collection centers...</p>
+        <p className="text-zinc-500 font-semibold animate-pulse">
+          {locating ? "Locating your position..." : "Mapping collection centers..."}
+        </p>
       </div>
     );
   }
@@ -136,7 +157,7 @@ export default function Map() {
         {/* Right Column: Leaflet Map Container */}
         <div className="lg:col-span-2 border border-zinc-900 rounded-3xl overflow-hidden relative shadow-2xl h-[500px] lg:h-[600px] z-10">
           <MapContainer 
-            center={defaultPosition} 
+            center={mapCenter} 
             zoom={12} 
             className="w-full h-full"
             style={{ background: "#18181b" }}
