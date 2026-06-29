@@ -2,3 +2,5 @@ flask
 flask-cors
 groq
 firebase-admin
+gunicorn==22.0.0
+uvicorn
