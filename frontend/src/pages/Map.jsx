@@ -1,15 +1,32 @@
 import { useState, useEffect } from "react";
 import { getCenters } from "../services/api";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { FaMapMarkerAlt, FaClock, FaPhoneAlt, FaTrash, FaRecycle } from "react-icons/fa";
+import { FaMapMarkerAlt, FaClock, FaPhoneAlt, FaTrash, FaRecycle, FaSearch, FaSpinner } from "react-icons/fa";
+
+// Helper component to programmatically pan the map when search/geolocation moves center
+function ChangeView({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, 12);
+    }
+  }, [center, map]);
+  return null;
+}
 
 export default function Map() {
   const [centers, setCenters] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [locating, setLocating] = useState(true);
-  const [mapCenter, setMapCenter] = useState(null);
+  
+  // Geolocation and search states
+  const [locating, setLocating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
+  
+  // Default regional center: Kandukur region [15.2166, 79.9048]
+  const [mapCenter, setMapCenter] = useState([15.2166, 79.9048]);
   const [selectedCenter, setSelectedCenter] = useState(null);
 
   useEffect(() => {
@@ -26,7 +43,10 @@ export default function Map() {
       }
     };
     fetchCenters();
+  }, []);
 
+  const handleUseMyLocation = () => {
+    setLocating(true);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -35,18 +55,42 @@ export default function Map() {
         },
         (error) => {
           console.error("Geolocation failed or denied:", error);
-          // Fallback to Bhimavaram region: [16.5449, 81.5212]
-          setMapCenter([16.5449, 81.5212]);
+          alert("Location access denied or failed. Please search for your location using the search bar.");
           setLocating(false);
         },
         { enableHighAccuracy: true, timeout: 5000 }
       );
     } else {
-      console.warn("Geolocation not supported by browser.");
-      setMapCenter([16.5449, 81.5212]);
+      alert("Geolocation is not supported by your browser.");
       setLocating(false);
     }
-  }, []);
+  };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setSearchLoading(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          searchQuery
+        )}&limit=1`
+      );
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        setMapCenter([parseFloat(lat), parseFloat(lon)]);
+      } else {
+        alert("Location not found. Please try a different query.");
+      }
+    } catch (err) {
+      console.error("Geocoding failed:", err);
+      alert("Failed to search location. Please try again.");
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   // Mapping category colors to hex values
   const getMarkerColor = (colorName) => {
@@ -96,13 +140,11 @@ export default function Map() {
     });
   };
 
-  if (loading || locating) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <FaRecycle className="animate-spin text-5xl text-emerald-400" />
-        <p className="text-zinc-500 font-semibold animate-pulse">
-          {locating ? "Locating your position..." : "Mapping collection centers..."}
-        </p>
+        <p className="text-zinc-500 font-semibold animate-pulse">Mapping collection centers...</p>
       </div>
     );
   }
@@ -113,6 +155,37 @@ export default function Map() {
       <div className="space-y-2">
         <h1 className="text-3xl font-extrabold tracking-tight text-white">Waste Collection Centers</h1>
         <p className="text-zinc-400 text-sm">Locate nearby recycling hubs, hazardous drop-offs, and organic composting points.</p>
+      </div>
+
+      {/* Search & Geolocation Controls */}
+      <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-zinc-900/30 border border-zinc-900 p-4 rounded-3xl">
+        <form onSubmit={handleSearch} className="flex-1 w-full flex gap-2">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            disabled={searchLoading}
+            placeholder="Search city, district, or pin code (e.g. Bhimavaram, Ongole)..."
+            className="flex-1 bg-zinc-950/50 border border-zinc-800 rounded-2xl py-3 px-4 text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50 text-sm transition-all placeholder:text-zinc-600"
+          />
+          <button
+            type="submit"
+            disabled={searchLoading}
+            className="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-sm transition-all flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
+          >
+            {searchLoading ? <FaSpinner className="animate-spin text-sm" /> : <FaSearch />}
+            <span>Search</span>
+          </button>
+        </form>
+
+        <button
+          onClick={handleUseMyLocation}
+          disabled={locating}
+          className="w-full md:w-auto px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-extrabold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/10 disabled:opacity-50"
+        >
+          {locating ? <FaSpinner className="animate-spin" /> : <FaMapMarkerAlt />}
+          <span>Use My Location</span>
+        </button>
       </div>
 
       {/* Main Content Layout */}
@@ -162,6 +235,7 @@ export default function Map() {
             className="w-full h-full"
             style={{ background: "#18181b" }}
           >
+            <ChangeView center={mapCenter} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
